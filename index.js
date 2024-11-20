@@ -1,3 +1,4 @@
+// index.js
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -5,18 +6,19 @@ import dotenv from "dotenv";
 
 dotenv.config(); // Load environment variables from .env file
 
-const app = express(); // Initialize the Express app
+const app = express();
 
+// Middleware
 app.use(express.json());
-app.use(cors()); // Enable CORS for all routes
 app.use(express.urlencoded({ extended: true }));
+app.use(cors()); // Enable CORS for all routes
 
 // MongoDB connection
-const uri = process.env.MONGODB_URI;
+const uri = process.env.MONGO_URI;
 
 if (!uri) {
-  console.error("MONGODB_URI is not defined in the environment variables.");
-  process.exit(1); // Exit if MongoDB URI is not provided
+  console.error("MONGO_URI is not defined in .env file");
+  process.exit(1);
 }
 
 mongoose
@@ -26,8 +28,8 @@ mongoose
   })
   .catch((err) => {
     console.error("MongoDB connection error:", err);
+    process.exit(1); // Exit the application if MongoDB connection fails
   });
-
 
 // Movie schema
 const movieSchema = new mongoose.Schema({
@@ -38,34 +40,32 @@ const movieSchema = new mongoose.Schema({
 
 const Movie = mongoose.model("Movie", movieSchema);
 
-
 // Movie routes
+// Create a new movie
 app.post("/api/movies", async (req, res) => {
-  const newMovie = new Movie({
-    movie: req.body.movie,
-    description: req.body.description,
-    image: req.body.image, // Optional image field
-  });
+  const { movie, description, image } = req.body;
 
   try {
+    const newMovie = new Movie({ movie, description, image });
     const savedMovie = await newMovie.save();
-    res.status(200).json(savedMovie);
+    res.status(201).json(savedMovie);
   } catch (error) {
     res.status(400).json({ message: "Error creating new movie", error });
   }
 });
 
+// Get all movies
 app.get("/api/movies", async (req, res) => {
-   try {
-    const limit = Number(req.query.limit);
-    const movies = limit ? await Movie.find().limit(limit) : await Movie.find();
+  try {
+    const limit = Number(req.query.limit) || 0; // Default to 0 (no limit)
+    const movies = await Movie.find().limit(limit);
     res.status(200).json(movies);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ message: "Error fetching movies", error });
   }
 });
- 
 
+// Get a single movie by ID
 app.get("/api/movies/:id", async (req, res) => {
   try {
     const movie = await Movie.findById(req.params.id);
@@ -80,6 +80,7 @@ app.get("/api/movies/:id", async (req, res) => {
   }
 });
 
+// Update a movie by ID
 app.put("/api/movies/:id", async (req, res) => {
   try {
     const updatedMovie = await Movie.findByIdAndUpdate(req.params.id, req.body, {
@@ -96,6 +97,7 @@ app.put("/api/movies/:id", async (req, res) => {
   }
 });
 
+// Delete a movie by ID
 app.delete("/api/movies/:id", async (req, res) => {
   try {
     const deletedMovie = await Movie.findByIdAndDelete(req.params.id);
